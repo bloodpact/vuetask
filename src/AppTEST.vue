@@ -28,7 +28,7 @@
     </div>
     <awesomecharts :chart-data="datacollection" :options="optionsChart">
     </awesomecharts>
-    <button @click="fillData()">Randomize</button>
+    <button class="btn btn-info" @click="fillData()">Chart</button>
 
   </div>
 </template>
@@ -86,14 +86,14 @@
             let sumArr = response.data.answer;
 
             let cpaLenght =  _.filter(sumArr,{'event':'LINK_VISITOR'}).length + _.filter(sumArr,{'event':'REGISTRATION'}).length;
-            if (cpaLenght != 0){
+            if (cpaLenght !== 0){
               this.cpa = numberSeparator((_.sumBy(sumArr, 'event_value') / cpaLenght).toFixed(2), ",");
             } else {
               this.cpa = 0;
             }
             let pays = 0;
             for (let i in sumArr){
-              if (sumArr[i].event == 'PAYMENT'){
+              if (sumArr[i].event === 'PAYMENT'){
                 pays += sumArr[i].event_value
                 this.sum = pays
               }
@@ -107,35 +107,73 @@
           labels: [],
           datasets: [
             {
-              label: 'Data One',
+              label: 'Сумма выплат',
               backgroundColor: '#f87979',
-              data: [this.getRandomInt(), this.getRandomInt() , this.getRandomInt(),this.getRandomInt(), this.getRandomInt() , this.getRandomInt(), this.getRandomInt() , this.getRandomInt(),this.getRandomInt(), this.getRandomInt() , this.getRandomInt(), this.getRandomInt() , this.getRandomInt(),this.getRandomInt(), this.getRandomInt() , this.getRandomInt(), this.getRandomInt() , this.getRandomInt(),this.getRandomInt(), this.getRandomInt() , this.getRandomInt(), this.getRandomInt() , this.getRandomInt(),this.getRandomInt(), this.getRandomInt() , this.getRandomInt()]
+              data: []
             }, {
-              label: 'Data One',
+              label: 'Data Two',
               backgroundColor: '#f87900',
               data: [this.getRandomInt(), this.getRandomInt() , this.getRandomInt()]
             }
           ]
-        }
-        console.log(this.datacollection.labels)
+        };
+
         let arrDates = [];
-        for (let i = 0; i<30; i++){
-          arrDates.push(finity.addDays(new Date(this.dataReq.dateFrom), i))
-          arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) //массив дат 30 + от выбранной
+        let coord1 = this.datacollection.datasets[0].data;
+        for (let i = 0; i < 30; i++){
+          arrDates.push(finity.addDays(new Date(this.dataReq.dateFrom), i));
+          arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) ;//массив дат 30 + от выбранной
           this.datacollection.labels[i] = arrDates[i]
         }
-      },
 
+        axios.post('http://localhost:8081',  this.dataReq)
+          .then((response) => {
+            let sumArr = response.data.answer;
+            let payValues = [];
+            let sumCoords = [];
+            for (let i  in sumArr){
+              //массив дат к общему формату, для сравнения
+              sumArr[i].date = Number.parseInt(finity.format(sumArr[i].date,'YYYYMMDD'));
+              for (let k in arrDates){
+                if (sumArr[i].date === arrDates[k]){
+                  if (sumArr[i].event  === 'PAYMENT') {
+                    payValues.push(sumArr[i].event_value);
+                    sumCoords = new Array(payValues.length);
+                    //вычисения массива с данными сложения выплат
+                    for (let j in payValues){
+                      sumCoords[j] = 0;
+                      let sum = sumCoords[j];
+                      for (let q = 0; q <= j; q++){
+                        sum += payValues[q]
+                      }
+                      sumCoords[j] = sum;
+                      coord1[k] = sumCoords[j];
+                    }
+                  }
+                }
+              }
+            }
+            //устанавливаем промежуточные точки вместо undefined
+            for (let i = 0; i <coord1.length; i++){
+              for (let q = 0; q <= i; q++){
+                if (coord1[i] === undefined){
+                  coord1[i] = 0;
+                  if (coord1[i-1] > coord1[i]){
+                    console.log(coord1[i]);
+                    coord1[i] = coord1[i-1]
+                  }
+                }
+              }
+            }
+
+          })
+          .catch(error => console.log(error))
+      },
+      getAnswer(){
+
+      },
       getRandomInt () {
         return Math.floor(Math.random() * (50 - 5 + 1)) + 5
-      },
-      getDates(){
-        let arrDates = [];
-        for (let i = 0; i<30; i++){
-          arrDates.push(finity.addDays(new Date(this.dataReq.dateFrom), i))
-          arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) //массив дат 30 + от выбранной
-        }
-        return arrDates
       }
     }
   }
