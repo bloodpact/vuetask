@@ -5,9 +5,13 @@ export default({
   extends: Line,
   mixins: [reactiveProp],
   props: ['options'],
-
+  data(){
+    return{
+      gradient: null,
+      gradient2: null
+    }
+  },
   mounted () {
     this.renderChart(this.data, this.options)
   }
-
 })
