@@ -40,6 +40,7 @@ app.post('/', (req, res)=>{
         connection.release();
       });
     } else {
+      // id empty
       connection.query(`SELECT * FROM stats WHERE  date BETWEEN date("${dateFrom}") AND date("${dateTo}")`, function (err, result, fields) {
         if (err) throw err;
         // console.log(result);

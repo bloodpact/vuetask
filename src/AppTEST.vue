@@ -85,8 +85,6 @@
           .then((response) => {
             let sumArr = response.data.answer;
             let cpaLenght =  _.filter(sumArr,{'event':'LINK_VISITOR'}).length + _.filter(sumArr,{'event':'REGISTRATION'}).length;
-
-
             if (cpaLenght !== 0){
               this.cpa = numberSeparator((_.sumBy(sumArr, 'event_value') / cpaLenght).toFixed(2), ",");
             } else {
@@ -134,33 +132,32 @@
           arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) ;//массив дат 30 + от выбранной
           this.datacollection.labels[i] = arrDates[i]
         }
-
         axios.post('http://localhost:8081',  this.dataReq)
           .then((response) => {
             let sumArr = response.data.answer;
             let payValues = [];
             let sumCoords = []; // координтаы сум выплат
-            let actArr= []; // массив кол-ва действий
-            for (let i  in sumArr){
-              //вычисляем кол-во действий
-              if (sumArr[i].event === 'LINK_VISITOR' || sumArr[i].event === 'REGISTRATION') {
-                actArr[i] = Number.parseInt(i) + 1
-              }
-              if (actArr[i] === undefined){
-                actArr[i] = 0 ;
-                if (actArr[i - 1] > actArr[i]){
-                  actArr[i] = actArr[i-1]
-                }
-              }
+            let visRegArr = _.concat(_.filter(sumArr,{'event':'LINK_VISITOR'}), _.filter(sumArr,{'event':'REGISTRATION'}));
+            let datesvisRegArr =_.map(visRegArr, 'date')
 
+            // массив кол-ва действий
+            let actArr = datesvisRegArr.reduce((acc, el) => {
+              el = Number.parseInt(finity.format(el,'YYYYMMDD'))
+              acc[el] = (acc[el] || 0) + 1;
+              return acc;
+            }, {});
+            console.log(actArr)
+
+            for (let i  in sumArr){
               //массив дат к общему формату, для сравнения
               sumArr[i].date = Number.parseInt(finity.format(sumArr[i].date,'YYYYMMDD'));
               for (let k in arrDates){
                 if (sumArr[i].date === arrDates[k]){
-                  coord2[i] = actArr[i]
-                  //коордитаны кол-ва действий
-
-
+                  _.forEach(actArr, function(value, key) {
+                    if (sumArr[i].date == key){
+                      coord2[k] = (value || 0)
+                    }
+                  });
 
                  if (sumArr[i].event  === 'PAYMENT') {
                     payValues.push(sumArr[i].event_value);
@@ -180,19 +177,37 @@
               }
             }
             //устанавливаем промежуточные точки вместо undefined
-            for (let i = 0; i <coord1.length; i++){
-                if (coord1[i] === undefined){
-                  coord1[i] = 0;
-                  if (coord1[i-1] > coord1[i]){
-                    coord1[i] = coord1[i-1]
-                  }
-                }
-            }
+            this.removeUndefined(coord1)
+            this.removeUndefinedToZero(coord2)
+
           })
           .catch(error => console.log(error));
       },
       getAnswer(){
+       axios.post('http://localhost:8081',  this.dataReq)
+      .then((response) => {
 
+      })
+      .catch(error => console.log(error))
+      },
+      removeUndefined(arr){
+        for (let i = 0; i < arr.length; i++){
+          if (arr[i] === undefined){
+            arr[i] = 0;
+            if (arr[i-1] > arr[i]){
+              arr[i] = arr[i-1]
+            }
+          }
+        }
+        return arr
+      },
+      removeUndefinedToZero(arr){
+        for (let i = 0; i < arr.length; i++){
+          if (arr[i] === undefined){
+            arr[i] = 0;
+          }
+        }
+        return arr
       }
     }
   }
