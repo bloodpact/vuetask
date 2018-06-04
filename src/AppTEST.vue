@@ -26,8 +26,8 @@
         </div>
       </div>
     </div>
-    <awesomecharts :chart-data="datacollection" :options="optionsChart">
-    </awesomecharts>
+    <linechart :chart-data="datacollection" :options="optionsChart">
+    </linechart>
     <button class="btn btn-info" @click="fillData()">Chart</button>
 
   </div>
@@ -37,15 +37,13 @@
 
   import DatePicker from 'vue2-datepicker'
   import finity from 'finity-js';
-  import DateEQ from 'date-eq'
-  import calendar from  './calendar'
-  import awesomecharts from './lineChart'
+  import linechart from './lineChart'
   import axios from 'axios'
   import _ from 'lodash'
   import numberSeparator from "number-separator";
   export default {
     components: {
-      awesomecharts,
+      linechart,
       DatePicker
     },
     data () {
@@ -103,11 +101,11 @@
       },
       fillData () {
         this.datacollection = {
-          labels: [],
+          labels: this.getDates(),
           datasets: [
             {
               label: 'Сумма выплат',
-              data: [],
+              data: this.getSumCoordinates(),
               borderColor: '#FC2525',
               pointBackgroundColor: '#FC2525',
               pointBorderColor: '#FC2525',
@@ -115,7 +113,7 @@
             },
             {
               label: 'Количество дейтсвий',
-              data: [],
+              data: this.getActionsCoordinates(),
               borderColor: '#05CBE1',
               pointBackgroundColor: '#05CBE1',
               pointBorderColor: '#05CBE1',
@@ -123,44 +121,62 @@
             }
           ]
         };
+        let arrDates = this.getDates()
 
-        let arrDates = [];
-        let coord1 = this.datacollection.datasets[0].data;
-        let coord2 = this.datacollection.datasets[1].data;
-        for (let i = 0; i < 30; i++){
-          arrDates.push(finity.addDays(new Date(this.dataReq.dateFrom), i));
-          arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) ;//массив дат 30 + от выбранной
-          this.datacollection.labels[i] = arrDates[i]
+      },
+      getActionsCoordinates(){
+       let coord = []
+       axios.post('http://localhost:8081',  this.dataReq)
+      .then((response) => {
+        let sumArr = response.data.answer;
+        sumArr.reduce((acc, el) => {
+          el.date = Number.parseInt(finity.format(el.date,'YYYYMMDD'))
+          return acc;
+        }, {});
+        let visRegArr = _.concat(_.filter(sumArr,{'event':'LINK_VISITOR'}), _.filter(sumArr,{'event':'REGISTRATION'}));
+        let datesvisRegArr =_.map(visRegArr, 'date');
+        let sumArrAction = _.map(sumArr);
+        let arrDates = this.getDates();
+        // массив кол-ва действий
+        let actArr = datesvisRegArr.reduce((acc, el) => {
+          acc[el] = (acc[el] || 0) + 1;
+          return acc;
+        }, {});
+        for (let i in sumArrAction){
+          for (let k in arrDates){
+            if (sumArrAction[i].date  === arrDates[k]){
+              _.forEach(actArr, function(value, key) {
+                if (sumArrAction[i].date == key){
+                  coord[k] = (value || 0)
+                }
+              });
+            }
+          }
         }
+        this.removeUndefinedToZero(coord)
+
+      })
+      .catch(error => console.log(error))
+        return coord
+      },
+      getSumCoordinates(){
+        let coord = []
         axios.post('http://localhost:8081',  this.dataReq)
           .then((response) => {
             let sumArr = response.data.answer;
-            let payValues = [];
-            let sumCoords = []; // координтаы сум выплат
-            let visRegArr = _.concat(_.filter(sumArr,{'event':'LINK_VISITOR'}), _.filter(sumArr,{'event':'REGISTRATION'}));
-            let datesvisRegArr =_.map(visRegArr, 'date')
-
-            // массив кол-ва действий
-            let actArr = datesvisRegArr.reduce((acc, el) => {
-              el = Number.parseInt(finity.format(el,'YYYYMMDD'))
-              acc[el] = (acc[el] || 0) + 1;
+            //массив дат к общему формату, для сравнения
+            sumArr.reduce((acc, el) => {
+              el.date = Number.parseInt(finity.format(el.date,'YYYYMMDD'))
               return acc;
             }, {});
-            console.log(actArr)
-
+            let arrDates = this.getDates()
+            let payValues = [];
+            let sumCoords = []; // координаты сум выплат
             for (let i  in sumArr){
-              //массив дат к общему формату, для сравнения
-              sumArr[i].date = Number.parseInt(finity.format(sumArr[i].date,'YYYYMMDD'));
               for (let k in arrDates){
                 if (sumArr[i].date === arrDates[k]){
-                  _.forEach(actArr, function(value, key) {
-                    if (sumArr[i].date == key){
-                      coord2[k] = (value || 0)
-                    }
-                  });
-
-                 if (sumArr[i].event  === 'PAYMENT') {
-                    payValues.push(sumArr[i].event_value);
+                  if (sumArr[i].event  === 'PAYMENT') {
+                     payValues.push(sumArr[i].event_value);
                     sumCoords = new Array(payValues.length);
                     //вычисление массива с данными сложения выплат
                     for (let j in payValues){
@@ -170,25 +186,25 @@
                         sum += payValues[q]
                       }
                       sumCoords[j] = sum;
-                      coord1[k] = sumCoords[j];
+                      coord[k] = sumCoords[j];
                     }
                   }
                 }
               }
             }
-            //устанавливаем промежуточные точки вместо undefined
-            this.removeUndefined(coord1)
-            this.removeUndefinedToZero(coord2)
-
+            this.removeUndefined(coord)
           })
           .catch(error => console.log(error));
+        return coord
       },
-      getAnswer(){
-       axios.post('http://localhost:8081',  this.dataReq)
-      .then((response) => {
-
-      })
-      .catch(error => console.log(error))
+      getDates(){
+        let arrDates = [];
+        for (let i = 0; i < 30; i++){
+          arrDates.push(finity.addDays(new Date(this.dataReq.dateFrom), i));
+          arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) ;//массив дат 30 + от выбранной
+          // this.datacollection.labels[i] = arrDates[i]
+        }
+        return arrDates
       },
       removeUndefined(arr){
         for (let i = 0; i < arr.length; i++){
