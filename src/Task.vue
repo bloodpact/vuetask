@@ -49,8 +49,8 @@
     data () {
       return {
         dataReq:{
-          id:534,
-          dateFrom: new Date(2017, 10, 13),
+          id:null,
+          dateFrom: new Date(),
           dateTo: new Date()
         },
         sum:'',
@@ -60,9 +60,7 @@
         lang:'en',
         alldates:[],
         datacollection: null,
-        optionsChart:{responsive: true, maintainAspectRatio: false},
-        loaded: false
-
+        optionsChart:{responsive: true, maintainAspectRatio: false}
       }
     },
     watch:{
@@ -101,6 +99,7 @@
           .catch(error => console.log(error))
       },
       fillData () {
+        //для отображения больших объемов данных требуется значительное время
         axios.post('http://localhost:8081',  this.dataReq)
           .then((response) => {
             this.datacollection = {
@@ -108,7 +107,7 @@
               datasets: [
                 {
                   label: 'Сумма выплат',
-                  data: this.getSumCoordinates(),
+                  data: [],
                   borderColor: '#FC2525',
                   pointBackgroundColor: '#FC2525',
                   pointBorderColor: '#FC2525',
@@ -116,7 +115,7 @@
                 },
                 {
                   label: 'Количество дейтсвий',
-                  data: this.getActionsCoordinates(),
+                  data: [],
                   borderColor: '#05CBE1',
                   pointBackgroundColor: '#05CBE1',
                   pointBorderColor: '#05CBE1',
@@ -180,87 +179,11 @@
           })
           .catch(error => console.log(error))
       },
-      getActionsCoordinates(){
-       let coord = []
-       axios.post('http://localhost:8081',  this.dataReq)
-       .then((response) => {
-        let sumArr = response.data.answer;
-        sumArr.reduce((acc, el) => {
-          el.date = Number.parseInt(finity.format(el.date,'YYYYMMDD'))
-          return acc;
-        }, {});
-        let visRegArr = _.concat(_.filter(sumArr,{'event':'LINK_VISITOR'}), _.filter(sumArr,{'event':'REGISTRATION'}));
-        let datesvisRegArr =_.map(visRegArr, 'date');
-        let sumArrAction = _.map(sumArr);
-        let arrDates = this.getDates();
-        // массив кол-ва действий
-        let actArr = datesvisRegArr.reduce((acc, el) => {
-          acc[el] = (acc[el] || 0) + 1;
-          return acc;
-        }, {});
-        for (let i in sumArrAction){
-          for (let k in arrDates){
-            if (sumArrAction[i].date  === arrDates[k]){
-              _.forEach(actArr, function(value, key) {
-                if (sumArrAction[i].date == key){
-                  coord[k] = (value || 0)
-                }
-              });
-            }
-          }
-        }
-        this.removeUndefinedToZero(coord)
-
-      })
-      .catch(error => console.log(error))
-        return coord
-      },
-      getSumCoordinates(){
-        let coord = [];
-        axios.post('http://localhost:8081',  this.dataReq)
-          .then((response) => {
-            let sumArr = response.data.answer;
-            //массив дат к общему формату, для сравнения
-            sumArr.reduce((acc, el) => {
-              el.date = Number.parseInt(finity.format(el.date,'YYYYMMDD'))
-              return acc;
-            }, {});
-            let arrDates = this.getDates()
-            let payValues = []; // размеры вылпат
-            let sumCoords = []; // координаты сум выплат
-            for (let i  in sumArr){
-              for (let k in arrDates){
-                if (sumArr[i].date === arrDates[k]){
-                  if (sumArr[i].event  === 'PAYMENT') {
-                     payValues.push(sumArr[i].event_value);
-                    sumCoords = new Array(payValues.length);
-                    //вычисление массива с данными сложения выплат
-                    for (let j in payValues){
-                      sumCoords[j] = 0;
-                      let sum = sumCoords[j];
-                      for (let q = 0; q <= j; q++){
-                        sum += payValues[q]
-                      }
-                      sumCoords[j] = sum;
-                      coord[k] = sumCoords[j];
-                    }
-                  }
-                }
-              }
-            }
-            this.removeUndefined(coord)
-
-
-          })
-          .catch(error => console.log(error));
-        return coord
-      },
       getDates(){
         let arrDates = [];
         for (let i = 0; i <= 30; i++){
           arrDates.push(finity.addDays(new Date(this.dataReq.dateFrom), i));
           arrDates[i] = Number.parseInt(finity.format(arrDates[i],'YYYYMMDD')) ;//массив дат 30 + от выбранной
-          // this.datacollection.labels[i] = arrDates[i]
         }
         return arrDates
       },
@@ -282,15 +205,10 @@
           }
         }
         return arr
-      },
-      getRandomInt () {
-        return Math.floor(Math.random() * (50 - 5 + 1)) + 5
       }
-
     }
   }
 </script>
-
 
 <style>
   .btn, input{
@@ -302,6 +220,5 @@
   .calendar{
     cursor: pointer;
   }
-
 
 </style>

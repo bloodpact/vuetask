@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import AppTEST from './AppTEST.vue'
+import AppTEST from './Task.vue'
 
 new Vue({
   el: '#app',
