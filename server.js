@@ -8,12 +8,6 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const mysql = require('mysql');
-const con = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "task"
-});
 const pool  = mysql.createPool({
   connectionLimit : 10,
   host: "localhost",
@@ -43,7 +37,6 @@ app.post('/', (req, res)=>{
       // id empty
       connection.query(`SELECT * FROM stats WHERE  date BETWEEN date("${dateFrom}") AND date("${dateTo}")`, function (err, result, fields) {
         if (err) throw err;
-        // console.log(result);
         res.send({
           answer: result
         })
